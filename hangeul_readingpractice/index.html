@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0a0d18" />
+<title>한글 랜덤 단어 생성기</title>
+<style>
+  :root{
+    --bg:#080a13;
+    --panel:rgba(255,255,255,.085);
+    --panel2:rgba(255,255,255,.055);
+    --line:rgba(255,255,255,.13);
+    --text:#f8f9ff;
+    --muted:#a9b0cb;
+    --purple:#8b68ff;
+    --pink:#ff5fbd;
+    --cyan:#37e4ff;
+    --green:#67f6b0;
+    --shadow:0 28px 90px rgba(0,0,0,.4);
+    --radius:28px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;font-family:Pretendard,"Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  body{
+    color:var(--text);
+    background:
+      radial-gradient(circle at 12% 8%,rgba(128,77,255,.32),transparent 31%),
+      radial-gradient(circle at 91% 13%,rgba(255,67,179,.25),transparent 29%),
+      radial-gradient(circle at 58% 93%,rgba(29,221,255,.19),transparent 36%),
+      linear-gradient(160deg,#080a13 0%,#11152a 53%,#070911 100%);
+    overflow-x:hidden;
+  }
+  body.lock-scroll{overflow:hidden}
+
+  .orb,.orb::before,.orb::after{
+    content:"";position:fixed;border-radius:50%;filter:blur(24px);
+    pointer-events:none;z-index:0;opacity:.42
+  }
+  .orb{width:260px;height:260px;background:#7650ff;left:-90px;top:17%;animation:f1 10s ease-in-out infinite}
+  .orb::before{width:220px;height:220px;background:#ff52b8;left:82vw;top:-8vh;animation:f2 12s ease-in-out infinite}
+  .orb::after{width:260px;height:260px;background:#22e7ff;left:52vw;top:62vh;animation:f3 14s ease-in-out infinite}
+  @keyframes f1{50%{transform:translate(85px,30px) scale(1.08)}}
+  @keyframes f2{50%{transform:translate(-90px,70px) scale(.9)}}
+  @keyframes f3{50%{transform:translate(40px,-55px) scale(1.12)}}
+
+  .wrap{
+    position:relative;z-index:1;min-height:100vh;
+    padding:clamp(14px,3.5vw,44px);
+    display:grid;place-items:center;
+  }
+  .shell{
+    width:min(1200px,100%);
+    display:grid;grid-template-columns:minmax(0,1.12fr) minmax(340px,.88fr);gap:20px;
+  }
+  .card{
+    border:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(255,255,255,.11),rgba(255,255,255,.065));
+    box-shadow:var(--shadow);
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+    border-radius:var(--radius);
+  }
+
+  .hero{
+    min-height:680px;padding:clamp(24px,4.5vw,52px);
+    display:flex;flex-direction:column;justify-content:space-between;
+    position:relative;overflow:hidden;
+  }
+  .hero::after{
+    content:"";position:absolute;right:-170px;bottom:-210px;width:430px;height:430px;
+    border-radius:50%;opacity:.13;
+    background:conic-gradient(from 40deg,var(--purple),var(--pink),var(--cyan),var(--purple));
+  }
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;width:max-content;
+    padding:8px 12px;border-radius:999px;
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    color:#e4e7f6;font-size:13px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 15px var(--green)}
+  h1{font-size:clamp(36px,5.8vw,70px);line-height:.98;margin:22px 0 14px;letter-spacing:-.055em}
+  .sub{margin:0;max-width:650px;color:var(--muted);font-size:clamp(15px,1.7vw,18px);line-height:1.65}
+
+  .wordbox{
+    margin-top:32px;position:relative;min-height:250px;
+    padding:clamp(32px,5vw,52px);
+    display:grid;place-items:center;overflow:hidden;
+    border-radius:28px;border:1px solid rgba(255,255,255,.14);
+    background:
+      radial-gradient(circle at 20% 15%,rgba(139,104,255,.24),transparent 40%),
+      radial-gradient(circle at 84% 80%,rgba(55,228,255,.16),transparent 42%),
+      linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,255,255,.035));
+    isolation:isolate;
+  }
+  .wordbox::before{
+    content:"";position:absolute;inset:0;z-index:-1;opacity:.45;
+    background:linear-gradient(120deg,transparent 15%,rgba(255,255,255,.08) 35%,transparent 55%);
+    transform:translateX(-100%);animation:shine 6s ease-in-out infinite;
+  }
+  @keyframes shine{0%,65%{transform:translateX(-110%)}85%,100%{transform:translateX(110%)}}
+
+  .word{
+    max-width:100%;position:relative;z-index:2;text-align:center;
+    font-size:clamp(62px,9.4vw,116px);line-height:1.08;font-weight:900;letter-spacing:.015em;
+    text-shadow:0 10px 36px rgba(0,0,0,.32);
+    overflow-wrap:anywhere;
+  }
+  .word.pop{animation:pop .38s cubic-bezier(.2,.82,.25,1)}
+  @keyframes pop{
+    0%{opacity:.1;transform:scale(.78) rotate(-1.5deg);filter:blur(8px)}
+    68%{opacity:1;transform:scale(1.045)}
+    100%{transform:scale(1);filter:blur(0)}
+  }
+  .spark{
+    position:absolute;border-radius:50%;background:white;pointer-events:none;z-index:3;
+    animation:spark .85s ease-out forwards;
+  }
+  @keyframes spark{to{transform:translate(var(--x),var(--y)) scale(0);opacity:0}}
+
+  .word-tools{position:absolute;right:12px;top:12px;z-index:5;display:flex;gap:8px}
+  .tool-btn,.iconbtn{
+    border:1px solid rgba(255,255,255,.13);
+    background:rgba(8,10,20,.34);color:white;backdrop-filter:blur(12px);
+    cursor:pointer;transition:.18s;
+  }
+  .tool-btn{width:44px;height:44px;border-radius:14px;font-size:19px}
+  .tool-btn:hover,.iconbtn:hover{background:rgba(255,255,255,.14);transform:translateY(-1px)}
+
+  /* True Fullscreen API styles + CSS fallback */
+  .wordbox:fullscreen,
+  .wordbox:-webkit-full-screen,
+  .wordbox.fallback-fullscreen{
+    margin:0!important;border:0!important;border-radius:0!important;
+    width:100vw!important;height:100vh!important;min-height:100vh!important;
+    padding:clamp(36px,7vw,90px)!important;
+    background:
+      radial-gradient(circle at 20% 18%,rgba(139,104,255,.38),transparent 35%),
+      radial-gradient(circle at 82% 22%,rgba(255,95,189,.29),transparent 34%),
+      radial-gradient(circle at 54% 86%,rgba(55,228,255,.24),transparent 39%),
+      #080a13!important;
+  }
+  .wordbox.fallback-fullscreen{
+    position:fixed!important;inset:0!important;z-index:9999!important;
+  }
+  .wordbox:fullscreen .word,
+  .wordbox:-webkit-full-screen .word,
+  .wordbox.fallback-fullscreen .word{
+    font-size:clamp(100px,19vw,290px)!important;
+    max-width:94vw;
+  }
+  .wordbox:fullscreen .word-tools,
+  .wordbox:-webkit-full-screen .word-tools,
+  .wordbox.fallback-fullscreen .word-tools{top:22px;right:22px}
+  .wordbox:fullscreen .tool-btn,
+  .wordbox:-webkit-full-screen .tool-btn,
+  .wordbox.fallback-fullscreen .tool-btn{width:54px;height:54px;font-size:23px}
+
+  .actions{display:grid;grid-template-columns:1fr auto;gap:12px;margin-top:18px}
+  button{font:inherit}
+  .primary{
+    min-height:60px;border:0;border-radius:18px;color:white;cursor:pointer;
+    font-weight:850;font-size:17px;
+    background:linear-gradient(135deg,#815eff 0%,#ff59bd 55%,#27dffb 125%);
+    box-shadow:0 14px 38px rgba(125,92,255,.25);transition:.18s;
+  }
+  .primary:hover{transform:translateY(-2px);box-shadow:0 17px 44px rgba(125,92,255,.34)}
+  button:active{transform:scale(.97)}
+  .iconbtn{width:60px;border-radius:18px;font-size:20px}
+
+  .hint{font-size:12px;line-height:1.55;color:#8e96b5}
+  .kbd{
+    display:inline-block;padding:2px 7px;border-radius:6px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);color:#dce0f0
+  }
+
+  .side{padding:20px;display:flex;flex-direction:column;gap:14px}
+  .panel{
+    padding:18px;border-radius:21px;
+    background:var(--panel2);border:1px solid rgba(255,255,255,.09)
+  }
+  .panel h2{margin:0;font-size:15px;letter-spacing:-.02em}
+  .labelrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}
+  .valuepill{
+    flex:0 0 auto;padding:6px 9px;border-radius:999px;
+    background:rgba(255,255,255,.09);font-size:12px;color:#fff
+  }
+  input[type="range"]{width:100%;accent-color:#ad82ff}
+
+  .segment{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:7px;
+    padding:5px;border-radius:16px;background:rgba(0,0,0,.15);
+  }
+  .segment button{
+    min-height:42px;border:1px solid transparent;border-radius:12px;
+    background:transparent;color:#aeb5cf;font-weight:800;cursor:pointer;transition:.18s
+  }
+  .segment button.active{
+    color:white;border-color:rgba(255,255,255,.13);
+    background:linear-gradient(135deg,rgba(139,104,255,.75),rgba(255,95,189,.55));
+    box-shadow:0 8px 24px rgba(0,0,0,.18)
+  }
+
+  .jamo-group+.jamo-group{margin-top:17px}
+  .jamo-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .jamo-title{font-size:12px;font-weight:850;color:#e5e8f5}
+  .jamo-count{font-size:11px;color:#8e96b5}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{
+    min-width:38px;min-height:38px;padding:7px 9px;border-radius:12px;
+    border:1px solid rgba(255,255,255,.11);color:#f0f2fb;cursor:pointer;
+    font-size:14px;font-weight:800;transition:.16s;user-select:none;
+    background:rgba(255,255,255,.09);
+  }
+  .chip[data-type="c"]{box-shadow:inset 0 0 0 1px rgba(139,104,255,.08)}
+  .chip[data-type="v"]{box-shadow:inset 0 0 0 1px rgba(255,95,189,.08)}
+  .chip[data-type="f"]{box-shadow:inset 0 0 0 1px rgba(55,228,255,.08)}
+  .chip:hover{transform:translateY(-1px);background:rgba(255,255,255,.15)}
+  .chip.off{
+    opacity:.28;background:rgba(255,255,255,.02);text-decoration:line-through;
+    box-shadow:none;transform:none;
+  }
+  .chip.disabled-group{opacity:.34}
+  .panel-note{margin-top:9px;color:#8991ae;font-size:11px;line-height:1.5}
+  .mini-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .mini-btn{
+    min-height:38px;border:1px solid rgba(255,255,255,.09);border-radius:12px;
+    color:#e8ebf7;background:rgba(255,255,255,.07);cursor:pointer;font-size:12px;font-weight:800;
+  }
+  .mini-btn:hover{background:rgba(255,255,255,.13)}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .desc strong{display:block;font-size:14px}
+  .desc span{display:block;margin-top:4px;font-size:12px;color:var(--muted);line-height:1.45}
+  .toggle{
+    width:50px;height:29px;border-radius:999px;border:1px solid rgba(255,255,255,.1);
+    background:#454b65;position:relative;cursor:pointer;flex:0 0 auto;
+  }
+  .toggle::after{
+    content:"";position:absolute;left:3px;top:3px;width:21px;height:21px;border-radius:50%;
+    background:white;transition:.18s;
+  }
+  .toggle.on{background:linear-gradient(90deg,var(--purple),var(--pink))}
+  .toggle.on::after{left:24px}
+
+  .interval-wrap{margin-top:14px}
+  .interval-grid{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center}
+  .seconds-input{
+    width:100%;height:43px;padding:0 12px;border-radius:12px;
+    border:1px solid rgba(255,255,255,.1);outline:none;
+    color:white;background:rgba(0,0,0,.14);font:inherit;font-weight:750;
+  }
+  .seconds-input:focus{border-color:rgba(139,104,255,.72);box-shadow:0 0 0 3px rgba(139,104,255,.12)}
+  .unit{font-size:12px;color:#b2b8cf}
+  .presets{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}
+  .preset{
+    min-height:34px;border:1px solid rgba(255,255,255,.08);border-radius:10px;
+    background:rgba(255,255,255,.055);color:#cfd3e4;cursor:pointer;font-size:11px;font-weight:800
+  }
+  .preset:hover{background:rgba(255,255,255,.12)}
+
+  .history{display:flex;flex-wrap:wrap;gap:7px;min-height:38px}
+  .history button{
+    padding:8px 10px;border-radius:11px;border:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.07);color:#ebedf7;font-weight:750;cursor:pointer
+  }
+  .history button:hover{background:rgba(255,255,255,.13)}
+  .text-btn{border:0;background:none;color:#9da4bf;cursor:pointer;font-size:11px;font-weight:800}
+
+  .toast{
+    position:fixed;left:50%;bottom:26px;z-index:20000;
+    transform:translate(-50%,14px);opacity:0;pointer-events:none;
+    padding:12px 16px;border-radius:14px;
+    background:rgba(9,11,20,.9);border:1px solid rgba(255,255,255,.13);
+    backdrop-filter:blur(14px);font-size:13px;color:white;transition:.2s;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  @media(max-width:900px){
+    .shell{grid-template-columns:1fr}
+    .hero{min-height:auto}
+  }
+  @media(max-width:540px){
+    .wrap{padding:10px}
+    .hero{padding:21px;border-radius:22px}
+    .side{padding:13px;border-radius:22px}
+    .wordbox{min-height:200px;border-radius:22px}
+    .word{font-size:clamp(54px,18vw,84px)}
+    .chip{min-width:35px;min-height:35px;padding:6px 8px}
+  }
+</style>
+</head>
+<body>
+<div class="orb"></div>
+
+<div class="wrap">
+  <main class="shell">
+    <section class="card hero">
+      <div>
+        <div class="eyebrow"><span class="dot"></span> 모든 현대 한글 자모 조합</div>
+        <h1>한글 랜덤<br>단어 생성기</h1>
+        <p class="sub">
+          초성·중성·종성을 직접 선택하고, 받침 유무까지 조절해 원하는 조건의 가상 한글 단어를 만듭니다.
+        </p>
+
+        <div class="wordbox" id="wordbox">
+          <div class="word-tools">
+            <button class="tool-btn" id="expandBtn" title="전체화면" aria-label="단어 화면 전체화면">⛶</button>
+          </div>
+          <div class="word" id="word">하루미</div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="generateBtn">✦ 새 단어 만들기</button>
+          <button class="iconbtn" id="copyBtn" title="복사" aria-label="단어 복사">⧉</button>
+        </div>
+      </div>
+
+      <div class="hint">
+        <span class="kbd">Space</span> 새 단어 ·
+        <span class="kbd">C</span> 복사 ·
+        <span class="kbd">F</span> 전체화면 ·
+        <span class="kbd">Esc</span> 전체화면 종료
+      </div>
+    </section>
+
+    <aside class="card side">
+      <section class="panel">
+        <div class="labelrow">
+          <h2>단어 길이</h2>
+          <span class="valuepill"><span id="lenValue">3</span>글자</span>
+        </div>
+        <input id="lengthRange" type="range" min="1" max="10" value="3" />
+      </section>
+
+      <section class="panel">
+        <div class="labelrow">
+          <h2>받침 설정</h2>
+          <span class="valuepill" id="batchimStatus">받침 없음</span>
+        </div>
+        <div class="segment" id="batchimSegment">
+          <button class="active" data-mode="none">없음</button>
+          <button data-mode="always">있음</button>
+          <button data-mode="mixed">혼합</button>
+        </div>
+        <div class="panel-note">혼합은 각 음절마다 받침 유무가 무작위로 결정됩니다.</div>
+      </section>
+
+      <section class="panel">
+        <div class="labelrow">
+          <h2>사용 자모</h2>
+          <span class="valuepill">클릭 ON/OFF</span>
+        </div>
+
+        <div class="jamo-group">
+          <div class="jamo-head">
+            <span class="jamo-title">초성 19개</span>
+            <span class="jamo-count" id="countC"></span>
+          </div>
+          <div class="chips" id="initialChips"></div>
+        </div>
+
+        <div class="jamo-group">
+          <div class="jamo-head">
+            <span class="jamo-title">중성 21개</span>
+            <span class="jamo-count" id="countV"></span>
+          </div>
+          <div class="chips" id="vowelChips"></div>
+        </div>
+
+        <div class="jamo-group" id="finalGroup">
+          <div class="jamo-head">
+            <span class="jamo-title">종성 27개</span>
+            <span class="jamo-count" id="countF"></span>
+          </div>
+          <div class="chips" id="finalChips"></div>
+        </div>
+
+        <div class="mini-actions">
+          <button class="mini-btn" id="allOnBtn">모두 켜기</button>
+          <button class="mini-btn" id="randomSetBtn">랜덤 선택</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="row">
+          <div class="desc">
+            <strong>생성 효과음</strong>
+            <span>단어를 만들 때 짧은 효과음이 납니다.</span>
+          </div>
+          <button class="toggle on" id="soundToggle" aria-label="효과음 끄기"></button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="row">
+          <div class="desc">
+            <strong>자동 생성</strong>
+            <span id="autoDesc">1.4초마다 새 단어를 생성합니다.</span>
+          </div>
+          <button class="toggle" id="autoToggle" aria-label="자동 생성 켜기"></button>
+        </div>
+
+        <div class="interval-wrap">
+          <div class="interval-grid">
+            <input class="seconds-input" id="autoSeconds" type="number" min="0.3" max="30" step="0.1" value="1.4" inputmode="decimal" />
+            <span class="unit">초</span>
+          </div>
+          <div class="presets">
+            <button class="preset" data-sec="0.5">0.5초</button>
+            <button class="preset" data-sec="1">1초</button>
+            <button class="preset" data-sec="2">2초</button>
+            <button class="preset" data-sec="3">3초</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="labelrow">
+          <h2>최근 생성</h2>
+          <button class="text-btn" id="clearHistory">지우기</button>
+        </div>
+        <div class="history" id="history"></div>
+      </section>
+
+      <section class="panel">
+        <div class="hint">
+          현대 한글 완성형 기준 <b>초성 19 × 중성 21 × 종성 28(종성 없음 포함)</b>의 유니코드 조합 규칙을 사용합니다.
+        </div>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<div class="toast" id="toast">완료</div>
+
+<script>
+const INITIALS = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const VOWELS = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+const FINALS = ['ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+const wordEl = $('#word');
+const boxEl = $('#wordbox');
+const rangeEl = $('#lengthRange');
+const lenValue = $('#lenValue');
+const historyEl = $('#history');
+const toast = $('#toast');
+const autoToggle = $('#autoToggle');
+const autoSeconds = $('#autoSeconds');
+const autoDesc = $('#autoDesc');
+const expandBtn = $('#expandBtn');
+
+let batchimMode = 'none';
+let history = [];
+let autoTimer = null;
+let soundOn = true;
+let audioCtx = null;
+let fallbackFullscreen = false;
+let toastTimer = null;
+
+function pick(arr){
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function clamp(n, min, max){
+  return Math.min(max, Math.max(min, n));
+}
+
+function renderJamo(){
+  const groups = [
+    ['initialChips', INITIALS, 'c'],
+    ['vowelChips', VOWELS, 'v'],
+    ['finalChips', FINALS, 'f']
+  ];
+
+  groups.forEach(([id, chars, type])=>{
+    const holder = $('#'+id);
+    holder.innerHTML = '';
+    chars.forEach(ch=>{
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.type = 'button';
+      btn.dataset.type = type;
+      btn.dataset.char = ch;
+      btn.textContent = ch;
+      btn.setAttribute('aria-pressed','true');
+      btn.addEventListener('click', ()=>toggleChip(btn));
+      holder.appendChild(btn);
+    });
+  });
+  updateCounts();
+}
+
+function getActiveChars(type){
+  return $$(`.chip[data-type="${type}"]:not(.off)`).map(el=>el.dataset.char);
+}
+
+function updateCounts(){
+  $('#countC').textContent = `${getActiveChars('c').length}/${INITIALS.length} 사용`;
+  $('#countV').textContent = `${getActiveChars('v').length}/${VOWELS.length} 사용`;
+  $('#countF').textContent = `${getActiveChars('f').length}/${FINALS.length} 사용`;
+}
+
+function toggleChip(chip){
+  const type = chip.dataset.type;
+  const active = getActiveChars(type);
+  const turningOff = !chip.classList.contains('off');
+
+  if(turningOff && active.length === 1){
+    showToast(
+      type === 'c' ? '초성은 최소 1개가 필요합니다.' :
+      type === 'v' ? '중성은 최소 1개가 필요합니다.' :
+      '종성은 최소 1개가 필요합니다.'
+    );
+    return;
+  }
+
+  chip.classList.toggle('off');
+  chip.setAttribute('aria-pressed', chip.classList.contains('off') ? 'false' : 'true');
+  updateCounts();
+  generateWord();
+}
+
+function composeSyllable(initial, vowel, finalChar=null){
+  const i = INITIALS.indexOf(initial);
+  const v = VOWELS.indexOf(vowel);
+  const f = finalChar ? FINALS.indexOf(finalChar) + 1 : 0;
+  return String.fromCharCode(0xAC00 + ((i * 21) + v) * 28 + f);
+}
+
+function shouldHaveFinal(){
+  if(batchimMode === 'none') return false;
+  if(batchimMode === 'always') return true;
+  return Math.random() < 0.5;
+}
+
+function generateWord({silent=false} = {}){
+  const activeI = getActiveChars('c');
+  const activeV = getActiveChars('v');
+  const activeF = getActiveChars('f');
+
+  if(!activeI.length || !activeV.length){
+    showToast('초성과 중성을 각각 1개 이상 켜 주세요.');
+    return;
+  }
+  if(batchimMode !== 'none' && !activeF.length){
+    showToast('받침을 사용하려면 종성을 1개 이상 켜 주세요.');
+    return;
+  }
+
+  const length = Number(rangeEl.value);
+  let result = '';
+
+  for(let n=0;n<length;n++){
+    const finalChar = shouldHaveFinal() ? pick(activeF) : null;
+    result += composeSyllable(pick(activeI), pick(activeV), finalChar);
+  }
+
+  wordEl.textContent = result;
+  wordEl.classList.remove('pop');
+  void wordEl.offsetWidth;
+  wordEl.classList.add('pop');
+
+  burst();
+  if(!silent) playCuteSound();
+
+  history = [result, ...history.filter(x=>x!==result)].slice(0,14);
+  renderHistory();
+}
+
+function burst(){
+  const rect = boxEl.getBoundingClientRect();
+  const count = document.fullscreenElement === boxEl || fallbackFullscreen ? 24 : 16;
+
+  for(let i=0;i<count;i++){
+    const s = document.createElement('i');
+    s.className = 'spark';
+    const size = 3 + Math.random()*6;
+    s.style.width = size+'px';
+    s.style.height = size+'px';
+    s.style.left = (rect.width/2 + (Math.random()-.5)*80)+'px';
+    s.style.top = (rect.height/2 + (Math.random()-.5)*60)+'px';
+
+    const angle = Math.random()*Math.PI*2;
+    const distance = 55 + Math.random()*(Math.min(rect.width,rect.height)*.24);
+    s.style.setProperty('--x', Math.cos(angle)*distance+'px');
+    s.style.setProperty('--y', Math.sin(angle)*distance+'px');
+
+    boxEl.appendChild(s);
+    setTimeout(()=>s.remove(),900);
+  }
+}
+
+function ensureAudio(){
+  if(!audioCtx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return false;
+    audioCtx = new AC();
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return true;
+}
+
+function playCuteSound(){
+  if(!soundOn || !ensureAudio()) return;
+  try{
+    const now = audioCtx.currentTime;
+    const notes = [659.25, 783.99, 987.77];
+
+    notes.forEach((freq,i)=>{
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = i === 2 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(freq,now+i*.052);
+      osc.frequency.exponentialRampToValueAtTime(freq*1.035,now+i*.052+.085);
+      gain.gain.setValueAtTime(.0001,now+i*.052);
+      gain.gain.exponentialRampToValueAtTime(.105,now+i*.052+.012);
+      gain.gain.exponentialRampToValueAtTime(.0001,now+i*.052+.135);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now+i*.052);
+      osc.stop(now+i*.052+.15);
+    });
+  }catch(e){}
+}
+
+function showToast(message){
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toast.classList.remove('show'),1250);
+}
+
+function renderHistory(){
+  historyEl.innerHTML = '';
+  if(!history.length){
+    historyEl.innerHTML = '<span class="hint">아직 생성한 단어가 없습니다.</span>';
+    return;
+  }
+
+  history.forEach(word=>{
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = word;
+    btn.title = '다시 보기';
+    btn.addEventListener('click',()=>{
+      wordEl.textContent = word;
+      wordEl.classList.remove('pop');
+      void wordEl.offsetWidth;
+      wordEl.classList.add('pop');
+      playCuteSound();
+    });
+    historyEl.appendChild(btn);
+  });
+}
+
+async function copyWord(){
+  const text = wordEl.textContent;
+  try{
+    await navigator.clipboard.writeText(text);
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  showToast(`“${text}” 복사 완료`);
+}
+
+function setBatchimMode(mode){
+  batchimMode = mode;
+  $$('#batchimSegment button').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.mode===mode);
+  });
+
+  const label = mode === 'none' ? '받침 없음' : mode === 'always' ? '받침 있음' : '받침 혼합';
+  $('#batchimStatus').textContent = label;
+
+  const finalGroup = $('#finalGroup');
+  finalGroup.style.opacity = mode === 'none' ? '.48' : '1';
+  finalGroup.querySelectorAll('.chip').forEach(chip=>{
+    chip.classList.toggle('disabled-group',mode === 'none');
+  });
+
+  generateWord();
+}
+
+function getIntervalSeconds(){
+  let sec = Number(autoSeconds.value);
+  if(!Number.isFinite(sec)) sec = 1.4;
+  sec = clamp(sec,.3,30);
+  autoSeconds.value = String(Number(sec.toFixed(1)));
+  return sec;
+}
+
+function updateAutoText(){
+  const sec = getIntervalSeconds();
+  autoDesc.textContent = `${sec}초마다 새 단어를 생성합니다.`;
+}
+
+function restartAutoTimer(){
+  if(!autoToggle.classList.contains('on')) return;
+  clearInterval(autoTimer);
+  const sec = getIntervalSeconds();
+  autoTimer = setInterval(()=>generateWord(),sec*1000);
+  updateAutoText();
+}
+
+function toggleAuto(){
+  const on = autoToggle.classList.toggle('on');
+  autoToggle.setAttribute('aria-label',on?'자동 생성 끄기':'자동 생성 켜기');
+
+  clearInterval(autoTimer);
+  autoTimer = null;
+
+  if(on){
+    generateWord();
+    const sec = getIntervalSeconds();
+    autoTimer = setInterval(()=>generateWord(),sec*1000);
+  }
+  updateAutoText();
+}
+
+function updateFullscreenUI(){
+  const active = document.fullscreenElement === boxEl || fallbackFullscreen;
+  expandBtn.textContent = active ? '×' : '⛶';
+  expandBtn.title = active ? '전체화면 종료' : '전체화면';
+  expandBtn.setAttribute('aria-label',active?'전체화면 종료':'단어 화면 전체화면');
+}
+
+async function enterFullscreen(){
+  if(document.fullscreenElement === boxEl || fallbackFullscreen) return;
+
+  try{
+    if(boxEl.requestFullscreen){
+      await boxEl.requestFullscreen();
+    }else if(boxEl.webkitRequestFullscreen){
+      boxEl.webkitRequestFullscreen();
+    }else{
+      throw new Error('Fullscreen API unavailable');
+    }
+  }catch(e){
+    fallbackFullscreen = true;
+    boxEl.classList.add('fallback-fullscreen');
+    document.body.classList.add('lock-scroll');
+    updateFullscreenUI();
+  }
+}
+
+async function exitFullscreen(){
+  if(fallbackFullscreen){
+    fallbackFullscreen = false;
+    boxEl.classList.remove('fallback-fullscreen');
+    document.body.classList.remove('lock-scroll');
+    updateFullscreenUI();
+    return;
+  }
+
+  try{
+    if(document.fullscreenElement && document.exitFullscreen){
+      await document.exitFullscreen();
+    }else if(document.webkitFullscreenElement && document.webkitExitFullscreen){
+      document.webkitExitFullscreen();
+    }
+  }catch(e){}
+}
+
+async function toggleFullscreen(){
+  const active = document.fullscreenElement === boxEl || fallbackFullscreen;
+  if(active) await exitFullscreen();
+  else await enterFullscreen();
+}
+
+document.addEventListener('fullscreenchange',()=>{
+  if(!document.fullscreenElement){
+    fallbackFullscreen = false;
+    boxEl.classList.remove('fallback-fullscreen');
+    document.body.classList.remove('lock-scroll');
+  }
+  updateFullscreenUI();
+});
+document.addEventListener('webkitfullscreenchange',updateFullscreenUI);
+
+$('#generateBtn').addEventListener('click',()=>generateWord());
+$('#copyBtn').addEventListener('click',copyWord);
+expandBtn.addEventListener('click',e=>{
+  e.stopPropagation();
+  toggleFullscreen();
+});
+
+rangeEl.addEventListener('input',()=>{
+  lenValue.textContent = rangeEl.value;
+  generateWord();
+});
+
+$$('#batchimSegment button').forEach(btn=>{
+  btn.addEventListener('click',()=>setBatchimMode(btn.dataset.mode));
+});
+
+$('#allOnBtn').addEventListener('click',()=>{
+  $$('.chip').forEach(chip=>{
+    chip.classList.remove('off');
+    chip.setAttribute('aria-pressed','true');
+  });
+  updateCounts();
+  generateWord();
+});
+
+$('#randomSetBtn').addEventListener('click',()=>{
+  ['c','v','f'].forEach(type=>{
+    const chips = $$(`.chip[data-type="${type}"]`);
+    chips.forEach(chip=>{
+      const off = Math.random() < .45;
+      chip.classList.toggle('off',off);
+      chip.setAttribute('aria-pressed',off?'false':'true');
+    });
+    if(getActiveChars(type).length===0){
+      const chosen = pick(chips);
+      chosen.classList.remove('off');
+      chosen.setAttribute('aria-pressed','true');
+    }
+  });
+  updateCounts();
+  generateWord();
+});
+
+$('#soundToggle').addEventListener('click',()=>{
+  soundOn = !soundOn;
+  $('#soundToggle').classList.toggle('on',soundOn);
+  $('#soundToggle').setAttribute('aria-label',soundOn?'효과음 끄기':'효과음 켜기');
+  if(soundOn) playCuteSound();
+});
+
+autoToggle.addEventListener('click',toggleAuto);
+
+autoSeconds.addEventListener('change',()=>{
+  updateAutoText();
+  restartAutoTimer();
+});
+autoSeconds.addEventListener('input',()=>{
+  const n = Number(autoSeconds.value);
+  if(Number.isFinite(n) && n >= .3 && n <= 30){
+    autoDesc.textContent = `${n}초마다 새 단어를 생성합니다.`;
+  }
+});
+
+$$('.preset').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    autoSeconds.value = btn.dataset.sec;
+    updateAutoText();
+    restartAutoTimer();
+  });
+});
+
+$('#clearHistory').addEventListener('click',()=>{
+  history = [];
+  renderHistory();
+});
+
+boxEl.addEventListener('click',e=>{
+  const active = document.fullscreenElement === boxEl || fallbackFullscreen;
+  if(active && e.target === boxEl) generateWord();
+});
+
+document.addEventListener('keydown',e=>{
+  const tag = document.activeElement?.tagName;
+  const typing = tag === 'INPUT' || tag === 'TEXTAREA';
+
+  if(e.key === 'Escape' && fallbackFullscreen){
+    exitFullscreen();
+    return;
+  }
+  if(typing) return;
+
+  if(e.code === 'Space'){
+    e.preventDefault();
+    generateWord();
+  }else if(e.key.toLowerCase() === 'c'){
+    copyWord();
+  }else if(e.key.toLowerCase() === 'f'){
+    toggleFullscreen();
+  }
+});
+
+/* Unlock Web Audio on first direct user interaction. */
+document.addEventListener('pointerdown',()=>{
+  if(soundOn) ensureAudio();
+},{once:true});
+
+renderJamo();
+updateAutoText();
+setBatchimMode('none');
+generateWord({silent:true});
+</script>
+</body>
+</html>
